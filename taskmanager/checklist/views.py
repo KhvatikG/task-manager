@@ -1,34 +1,26 @@
-from rest_framework import generics
+from rest_framework import generics, viewsets, permissions
+from rest_framework.serializers import ModelSerializer
 
 from checklist.models import Task, Department, CheckList
 from checklist.serializers import TaskSerializer, DepartmentSerializer, CheckListSerializer
 
 
-class TaskAPIList(generics.ListCreateAPIView):
+class TaskAPIView(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 
-class TaskAPIUpdate(generics.UpdateAPIView):
-    queryset = Task.objects.all()
-    serializer_class = TaskSerializer
-
-
-class DepartmentAPIList(generics.ListCreateAPIView):
+class DepartmentAPIView(viewsets.ModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 
-class DepartmentAPIUpdate(generics.UpdateAPIView):
-    queryset = Department.objects.all()
-    serializer_class = DepartmentSerializer
-
-
-class CheckListAPIList(generics.ListCreateAPIView):
+class CheckListAPIView(viewsets.ModelViewSet):
     queryset = CheckList.objects.all()
     serializer_class = CheckListSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-
-class CheckListAPIUpdate(generics.UpdateAPIView):
-    queryset = CheckList.objects.all()
-    serializer_class = CheckListSerializer
+    def perform_create(self, serializer: ModelSerializer):
+        serializer.save(created_by=self.request.user)

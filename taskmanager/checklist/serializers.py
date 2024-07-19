@@ -57,7 +57,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
 
 class CheckListSerializer(serializers.ModelSerializer):
-    task = TaskSerializer(many=True, read_only=True)
+    tasks = TaskSerializer(many=True, read_only=True)
     department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all())
     created_by = UserSerializer(read_only=True)
 
@@ -70,8 +70,8 @@ class CheckListSerializer(serializers.ModelSerializer):
             "time_create",
             "time_update",
             "is_published",
-            "created_by",
             "tasks",
+            "created_by",
         ]
         read_only_fields = [
             "id",
@@ -79,11 +79,6 @@ class CheckListSerializer(serializers.ModelSerializer):
             "time_update",
             "created_by",
         ]
-
-        def create(self, validated_data):
-            user = self.context['request'].user
-            validated_data['created_by'] = user
-            return super().create(validated_data)
 
 
 class CheckListsAssignmentSerializer(serializers.ModelSerializer):

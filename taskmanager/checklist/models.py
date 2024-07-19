@@ -8,7 +8,6 @@ class Department(models.Model):
     description = models.TextField(blank=True)
 
 
-
 class Task(models.Model):
 
     title = models.CharField(max_length=255)
