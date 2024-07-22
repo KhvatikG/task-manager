@@ -38,12 +38,16 @@ class Task(models.Model):
         return self.title
 
 
-class TaskPhoto(models.Model):
+class TaskExamplePhoto(models.Model):
 
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='example_photos')
     photo = models.ImageField(upload_to='task_examples/')
-    description = models.CharField(max_length=255, blank=True)
+    description = models.CharField(max_length=255, null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
 
     def __str__(self):
         return f"Фото примера выполнения для {self.task.title}"

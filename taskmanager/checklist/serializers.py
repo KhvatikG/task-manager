@@ -6,12 +6,34 @@ from .models import (
     Task,
     Department,
     CheckList,
-    TaskPhoto,
+    TaskExamplePhoto,
     CheckListAssignment,
     CheckListExecution,
     TaskExecutions,
     TaskExecutionPhoto
     )
+# Модель включающая userprofile для расширения полей, для начала реализует разграничение прав
+"""
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password', 'is_staff', 'is_active', 'userprofile']  # укажите поля, которые должны быть представлены
+
+    def create(self, validated_data):
+        # Извлечем UserProfile, если он есть
+        user_profile_data = validated_data.pop('userprofile', None)
+        
+        # Создаем нового пользователя
+        user = User(*validated_data)
+        user.set_password(validated_data['password'])  # Храните пароль в зашифрованном виде
+        user.save()
+        
+        # Создаем UserProfile, если он есть
+        if user_profile_data:
+            UserProfile.objects.create(user=user, *user_profile_data)
+
+        return user
+"""
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -28,13 +50,18 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 class TaskPhotoSerializer(serializers.ModelSerializer):
     class Meta:
-        model = TaskPhoto
+        model = TaskExamplePhoto
         fields = ["id", "photo", "description", "uploaded_at"]
         read_only_fields = ["id", "uploaded_at"]
 
+    def validate_photo(self, value):
+        if not value.name.lower().endswith(('.jpg', '.jpeg', '.png')):
+            raise serializers.ValidationError("Неподдерживаемый формат фото.")
+        return value
+
 
 class TaskSerializer(serializers.ModelSerializer):
-    example_photos = TaskPhotoSerializer(many=True, read_only=True)
+    example_photos = TaskPhotoSerializer(many=True, required=False)
 
     class Meta:
         model = Task
@@ -44,10 +71,10 @@ class TaskSerializer(serializers.ModelSerializer):
             "description",
             "check_list",
             "order",
-            "time_create",
-            "time_update",
             "requires_photo",
             "example_photos",
+            "time_create",
+            "time_update",
         ]
         read_only_fields = [
             "id",
@@ -108,7 +135,7 @@ class TaskExecutionPhotoSerializer(serializers.ModelSerializer):
             "photo",
             "uploaded_at"
         ]
-        read_only_field = [
+        read_only_fields = [
             "id",
             "uploaded_at",
         ]
@@ -137,10 +164,10 @@ class TaskExecutionSerializer(serializers.ModelSerializer):
             "completed_by",
         ]
 
-        def create(self, validated_data):
-            user = self.context['request'].user
-            validated_data['completed_by'] = user
-            return super().create(validated_data)
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['completed_by'] = user
+        return super().create(validated_data)
 
 
 class CheckListExecutionSerializer(serializers.ModelSerializer):
@@ -165,7 +192,7 @@ class CheckListExecutionSerializer(serializers.ModelSerializer):
             "start_at"
         ]
 
-        def create(self, validated_data):
-            user = self.context['request'].user
-            validated_data['executed_by'] = user
-            return super().create(validated_data)
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['executed_by'] = user
+        return super().create(validated_data)
