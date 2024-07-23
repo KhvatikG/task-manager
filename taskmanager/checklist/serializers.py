@@ -12,7 +12,7 @@ from .models import (
     TaskExecutions,
     TaskExecutionPhoto
     )
-# Модель включающая userprofile для расширения полей, для начала реализует разграничение прав
+# Модель включающая userprofile для расширения полей, для начала реализует разграничение прав.
 """
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -48,20 +48,20 @@ class DepartmentSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "description"]
 
 
-class TaskPhotoSerializer(serializers.ModelSerializer):
+class TaskExamplePhotoSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskExamplePhoto
-        fields = ["id", "photo", "description", "uploaded_at"]
+        fields = ["id", "photo", "description", "uploaded_at", "order"]
         read_only_fields = ["id", "uploaded_at"]
 
     def validate_photo(self, value):
-        if not value.name.lower().endswith(('.jpg', '.jpeg', '.png')):
+        if not value.name.lower().endswith(('.jpg', '.jpeg')):
             raise serializers.ValidationError("Неподдерживаемый формат фото.")
         return value
 
 
 class TaskSerializer(serializers.ModelSerializer):
-    example_photos = TaskPhotoSerializer(many=True, required=False)
+    example_photos = TaskExamplePhotoSerializer(many=True, required=False)
 
     class Meta:
         model = Task
@@ -81,6 +81,20 @@ class TaskSerializer(serializers.ModelSerializer):
             "time_create",
             "time_update",
         ]
+
+    def create(self, validated_data):
+        example_photos_data = validated_data.pop('example_photos', [])
+        task = Task.objects.create(**validated_data)
+        for photo_data in example_photos_data:
+            TaskExamplePhoto.objects.create(task=task, **photo_data)
+        return task
+
+    def update(self, instance, validated_data):
+        example_photos_data = validated_data.pop('example_photos', [])
+        instance = super().update(instance, validated_data)
+        for photo_data in example_photos_data:
+            TaskExamplePhoto.objects.create(task=instance, **photo_data)
+        return instance
 
 
 class CheckListSerializer(serializers.ModelSerializer):

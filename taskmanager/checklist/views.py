@@ -1,14 +1,13 @@
-from rest_framework import generics, viewsets, permissions
-from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework import viewsets, permissions
 from rest_framework.serializers import ModelSerializer
 
 
-from checklist.models import Task, Department, CheckList, TaskPhoto
+from checklist.models import Task, Department, CheckList, TaskExamplePhoto
 from checklist.serializers import (
     TaskSerializer,
     DepartmentSerializer,
     CheckListSerializer,
-    TaskPhotoSerializer,
+    TaskExamplePhotoSerializer,
 )
 
 # Вьюшка для получения/добавления пользователей
@@ -24,19 +23,6 @@ class TaskAPIView(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated]
-
-    def perform_create(self, serializer):
-        # Сначала сохраняем основную задачу
-        task = serializer.save()
-
-        # Затем получаем фотографии, если они были переданы
-        photos_data = self.request.data.get('example_photos', [])
-
-        for photo_data in photos_data:
-            # Валидируем и создаём фото
-            photo_serializer = TaskPhotoSerializer(data=photo_data)
-            if photo_serializer.is_valid(raise_exception=True):
-                photo_serializer.save(task=task)
 
 
 class DepartmentAPIView(viewsets.ModelViewSet):
