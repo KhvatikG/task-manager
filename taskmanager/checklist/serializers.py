@@ -1,3 +1,4 @@
+from django.core.files.uploadedfile import InMemoryUploadedFile
 from rest_framework import serializers
 
 from django.contrib.auth.models import User
@@ -51,9 +52,12 @@ class DepartmentSerializer(serializers.ModelSerializer):
 class TaskExamplePhotoSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskExamplePhoto
-        fields = ["id", "photo", "description", "uploaded_at", "order"]
+        fields = ["id", "task", "photo", "description", "uploaded_at", "order"]
         read_only_fields = ["id", "uploaded_at"]
 
+    def validate(self, data):
+        print(f"В фото сериализаторе {data}")
+        return data
     def validate_photo(self, value):
         if not value.name.lower().endswith(('.jpg', '.jpeg')):
             raise serializers.ValidationError("Неподдерживаемый формат фото.")
@@ -82,19 +86,17 @@ class TaskSerializer(serializers.ModelSerializer):
             "time_update",
         ]
 
-    def create(self, validated_data):
-        example_photos_data = validated_data.pop('example_photos', [])
-        task = Task.objects.create(**validated_data)
-        for photo_data in example_photos_data:
-            TaskExamplePhoto.objects.create(task=task, **photo_data)
-        return task
-
     def update(self, instance, validated_data):
-        example_photos_data = validated_data.pop('example_photos', [])
         instance = super().update(instance, validated_data)
-        for photo_data in example_photos_data:
-            TaskExamplePhoto.objects.create(task=instance, **photo_data)
         return instance
+
+    def validate_example_photos(self, data):
+        return data
+    def validate(self, data):
+        print(f"В сериализаторе: \n {data}")
+        if self.instance is None and 'check_list' not in data:
+            raise serializers.ValidationError("check_list is required when creating a new Task")
+        return data
 
 
 class CheckListSerializer(serializers.ModelSerializer):

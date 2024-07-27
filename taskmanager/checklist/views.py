@@ -1,6 +1,13 @@
-from rest_framework import viewsets, permissions
-from rest_framework.serializers import ModelSerializer
+import ast
+import json
 
+from django.core.files.uploadedfile import InMemoryUploadedFile
+from django.db import transaction
+from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
+from rest_framework.serializers import ModelSerializer
 
 from checklist.models import Task, Department, CheckList, TaskExamplePhoto
 from checklist.serializers import (
@@ -22,7 +29,90 @@ class UserViewSet(viewsets.ModelViewSet):
 class TaskAPIView(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    # permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+
+        # Создаём сериализатор для таски
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Сохраняем таску
+        task = serializer.save()
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        # ---------------------------------------------------------------
+        print(request.headers)
+        print(f"Во вьюхе: \n {request.data}")
+        print(f"Фото: \n {request.data.getlist('photo')}")
+        p: InMemoryUploadedFile = request.data.getlist('photo')[0]
+        print(p.name)
+
+        # ----------------------------------------------------------------
+        partial = kwargs.pop('partial', False)
+
+        # Создаём сериализатор для таски
+        instance = self.get_object()
+        serializer = self.get_serializer(instance=instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        # Сохраняем таску
+        task = serializer.save()
+
+        # Извлекаем список фотографий из запроса и данные для FotoExample и объедением.
+        photos = self.parse_photo_example_objects(request.data, task.id)
+        print(f"Photos: {photos}")
+
+        for photo in photos:
+            # Если есть поле id, то изменяем существующую модель фото примера
+            if photo_id := photo.get('id', False):
+                photo_instance = TaskExamplePhoto.objects.get(pk=photo_id)
+                photo_serializer = TaskExamplePhotoSerializer(instance=photo_instance, data=photo, partial=True)
+                photo_serializer.is_valid(raise_exception=True)
+                photo_serializer.save()
+            # Иначе создаём новую модель фото примера
+            else:
+                photo_serializer = TaskExamplePhotoSerializer(data=photo)
+                photo_serializer.is_valid(raise_exception=True)
+                photo_serializer.save()
+
+        return Response(serializer.data)
+
+
+    def parse_photo_example_objects(self, data, task_id):
+
+        result = []
+
+        photos_data = data.getlist('example_photos')
+        photos = {photo.name: photo for photo in data.getlist('photo')}
+
+        for photo_data in photos_data:
+            photo_data_dict = ast.literal_eval(photo_data)
+            photo_file_name = photo_data_dict.pop('file_name', False)
+
+            if photo_file_name:
+                photo_data_dict['photo'] = photos[photo_file_name]
+
+            photo_data_dict['task'] = task_id
+            result.append(photo_data_dict)
+
+        return result
+
+    @action(detail=True, methods=['DELETE'], url_path='remove-photo/(?P<photo_id>[^/.]+)')
+    def remove_photo(self, request, pk=None, photo_id=None):
+        task = self.get_object()
+        photo = task.example_photos.filter(id=photo_id).first()
+
+        if not photo:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        photo.photo.delete(save=False)  # Удаляем файл фото
+        photo.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class DepartmentAPIView(viewsets.ModelViewSet):
