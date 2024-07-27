@@ -43,6 +43,17 @@ class TaskAPIView(viewsets.ModelViewSet):
         # Сохраняем таску
         task = serializer.save()
 
+        # Извлекаем список фотографий из запроса и данные для FotoExample и объедением.
+        photos = self.parse_photo_example_objects(request.data, task.id)
+
+        # Добавляем фото сериализатор, валидируем и сохраняем
+        photo_serializer = TaskExamplePhotoSerializer(data=photos, many=True)
+        photo_serializer.is_valid(raise_exception=True)
+        photo_serializer.save()
+
+        return Response(serializer.data)
+
+
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         # ---------------------------------------------------------------
