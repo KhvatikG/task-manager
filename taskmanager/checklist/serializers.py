@@ -11,8 +11,9 @@ from .models import (
     CheckListAssignment,
     CheckListExecution,
     TaskExecutions,
-    TaskExecutionPhoto
-    )
+    TaskExecutionPhoto,
+    Role
+)
 # Модель включающая userprofile для расширения полей, для начала реализует разграничение прав.
 """
 class UserSerializer(serializers.ModelSerializer):
@@ -37,10 +38,58 @@ class UserSerializer(serializers.ModelSerializer):
 """
 
 
+class RoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Role
+        fields = [
+            "id",
+            "role_name",
+            "can_create_update",
+            "users",
+            "time_create",
+            "time_update",
+            "created_by",
+            "update_by"
+        ]
+        read_only_fields = ["id", "time_create", "time_update", "created_by", "updated_by"]
+
+
 class UserSerializer(serializers.ModelSerializer):
+    roles = RoleSerializer(many=True, required=False)
+
     class Meta:
         model = User
-        fields = ["id", "username", "email"]
+        fields = ["id", "username", "email", "first_name", "last_name", "roles", "password"]
+        read_only_fields = ["id"]
+        extra_kwargs = {
+            "password": {"write_only": True},
+            "first_name": {"required": False},
+            "last_name": {"required": False}
+        }
+
+    def create(self, validated_data):
+        """
+        Ожидает роли в виде списка словарей по ключу roles
+        "role_name": "имя существующей роли"
+        """
+        # Создаём объект пользователя
+        user = User.objects.create_user(
+            username=validated_data.pop("username", ""),
+            password=validated_data.pop("password", ""),
+            first_name=validated_data.get("first_name", ""),
+            last_name=validated_data.get("last_name", "")
+        )
+
+        # Извлекаем данные по ролям
+        roles_data = validated_data.pop("roles")
+
+        # Для каждой роли
+        for role in roles_data:
+            if role_name := role.get("role_name", False):  # Получаем имя роли, если есть
+                role_instance = Role.objects.get(role_name=role_name)  # Получаем объект роли по имени
+                role_instance.users.add(user.id)  # В поле пользователи полученной роли добавляем нового пользователя
+
+        return validated_data
 
 
 class DepartmentSerializer(serializers.ModelSerializer):

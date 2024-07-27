@@ -22,6 +22,8 @@ from rest_framework import routers
 from checklist import views
 
 router = routers.DefaultRouter()
+router.register(r'users', views.UserViewSet)
+router.register(r'roles', views.RoleViewSet)
 router.register(r'tasks', views.TaskAPIView)
 router.register('departments', views.DepartmentAPIView)
 router.register('check_lists', views.CheckListAPIView)

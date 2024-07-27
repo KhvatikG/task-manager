@@ -6,14 +6,32 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-"""
-Добавить класс для разграничения доступа
+
+class Role(models.Model):
+
+    role_name = models.CharField(max_length=30)
+    can_create_update = models.BooleanField(default=False)
+    users = models.ManyToManyField(User, related_name='roles', blank=True, null=True)
+
+    time_create = models.DateTimeField(auto_now_add=True)
+    time_update = models.DateTimeField(auto_now=True)
+
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, related_name='created_roles', null=True, blank=True
+    )
+    update_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, related_name='updated_roles', null=True, blank=True
+    )
+
+
+"""    
 class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)  # Связь один к одному с моделью User
-    is_privileged = models.BooleanField(default=False)  # Дополнительное поле для определения прав
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')  # Связь один к одному с моделью User
+    can_ = models.BooleanField(default=False)  # Дополнительное поле для определения прав
 
     def __str__(self):
         return f"Профиль для {self.user.username}"
+
 """
 
 
@@ -73,6 +91,13 @@ class CheckListAssignment(models.Model):
 
     checklist = models.ForeignKey(CheckList, on_delete=models.CASCADE, related_name='assignments')
     assigned_to = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_checklists')
+    group_assigned = models.ForeignKey(
+        Role,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='assigned_checklists'
+    )
     assigned_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
 

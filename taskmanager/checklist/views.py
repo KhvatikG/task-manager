@@ -6,24 +6,46 @@ from django.db import transaction
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer
 
-from checklist.models import Task, Department, CheckList, TaskExamplePhoto
+from checklist.models import Task, Department, CheckList, TaskExamplePhoto, User, Role
 from checklist.serializers import (
     TaskSerializer,
     DepartmentSerializer,
     CheckListSerializer,
-    TaskExamplePhotoSerializer,
+    TaskExamplePhotoSerializer, UserSerializer, RoleSerializer,
 )
 
+
 # Вьюшка для получения/добавления пользователей
-"""
 class UserViewSet(viewsets.ModelViewSet):
+    """
+    Принимает данные в виде json с вложенной структурой
+    В поле role должнен быть список объектов "role_name": "имя существующей роли"
+    """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAdminUser]  # Ограничиваем доступ только для администраторов
-"""
+    # permission_classes = [IsAdminUser]  # Ограничиваем доступ только для администраторов
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data)
+
+
+class RoleViewSet(viewsets.ModelViewSet):
+    """
+    Привязка пользователей происходит полным переопределением. При переходе к роли,
+    фронт получает список всех пользователей с активным чекбоксом у привязанных к роли.
+    Переопределяются чекбоксы и методом PUT отправляется новый список привязанных пользователей.
+    """
+    queryset = Role.objects.all()
+    serializer_class = RoleSerializer
+    # permission_classes = [IsAdminUser]  # Ограничиваем доступ только для администраторов
 
 
 class TaskAPIView(viewsets.ModelViewSet):
@@ -135,7 +157,7 @@ class DepartmentAPIView(viewsets.ModelViewSet):
 class CheckListAPIView(viewsets.ModelViewSet):
     queryset = CheckList.objects.all()
     serializer_class = CheckListSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer: ModelSerializer):
         serializer.save(created_by=self.request.user)

@@ -9,6 +9,7 @@ from checklist.models import (
     CheckListExecution,
     TaskExecutions,
     TaskExecutionPhoto,
+    Role
 )
 
 
@@ -21,4 +22,5 @@ admin.site.register([
     CheckListExecution,
     TaskExecutions,
     TaskExecutionPhoto,
+    Role
 ])
