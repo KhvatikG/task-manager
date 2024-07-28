@@ -22,6 +22,7 @@ from rest_framework import routers
 from checklist import views
 
 router = routers.DefaultRouter()
+router.register(r'assignments', views.AssignmentAPIView)
 router.register(r'users', views.UserViewSet)
 router.register(r'roles', views.RoleViewSet)
 router.register(r'tasks', views.TaskAPIView)

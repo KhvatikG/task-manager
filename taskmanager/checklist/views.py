@@ -1,5 +1,4 @@
 import ast
-import json
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.db import transaction
@@ -10,13 +9,20 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer
 
-from checklist.models import Task, Department, CheckList, TaskExamplePhoto, User, Role
+from checklist.models import Task, Department, CheckList, TaskExamplePhoto, User, Role, CheckListAssignment
 from checklist.serializers import (
     TaskSerializer,
     DepartmentSerializer,
     CheckListSerializer,
-    TaskExamplePhotoSerializer, UserSerializer, RoleSerializer,
+    TaskExamplePhotoSerializer, UserSerializer, RoleSerializer, CheckListsAssignmentSerializer,
 )
+
+
+#------------------------------------------------------------------
+# Добавить рейтинг для работников(кол-во завершённых(завершенных во время) ко всем)
+# Условные таски, можно выполнять если выполнена/ны другие таски
+# Время выполнения для таски, статус просрочен для таски, если выполнена не вовремя(оповещение о просрочке)
+#------------------------------------------------------------------
 
 
 # Вьюшка для получения/добавления пользователей
@@ -190,3 +196,13 @@ class CheckListAPIView(viewsets.ModelViewSet):
     *  В  get_permissions  мы  проверяем,  является  ли  метод  SAFE_METHODS  (GET, HEAD, OPTIONS),  и  если  да,  то  разрешаем  доступ  всем  авторизованным  пользователям.  
     *  Для  POST,  PUT,  DELETE  методов  мы  требуем  права  IsAdminUser,  чтобы  только  администраторы  могли  создавать,  изменять  и  удалять  назначения.
     """
+
+
+class AssignmentAPIView(viewsets.ModelViewSet):
+    queryset = CheckListAssignment.objects.all()
+    serializer_class = CheckListsAssignmentSerializer
+    # permission_classes = [IsAdminUser]  # Ограничиваем доступ только для администраторов
+
+
+
+
