@@ -107,6 +107,7 @@ class TaskExamplePhotoSerializer(serializers.ModelSerializer):
     def validate(self, data):
         print(f"В фото сериализаторе {data}")
         return data
+
     def validate_photo(self, value):
         if not value.name.lower().endswith(('.jpg', '.jpeg')):
             raise serializers.ValidationError("Неподдерживаемый формат фото.")
@@ -141,6 +142,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     def validate_example_photos(self, data):
         return data
+
     def validate(self, data):
         print(f"В сериализаторе: \n {data}")
         if self.instance is None and 'check_list' not in data:
@@ -174,8 +176,9 @@ class CheckListSerializer(serializers.ModelSerializer):
 
 
 class CheckListsAssignmentSerializer(serializers.ModelSerializer):
-    checklist = CheckListSerializer(read_only=True)
-    assigned_to = UserSerializer(read_only=True)
+    # checklist = CheckListSerializer(read_only=False)
+    # assigned_to = UserSerializer(read_only=False, required=False)
+    # group_assigned = RoleSerializer(read_only=False, required=False)
 
     class Meta:
         model = CheckListAssignment
@@ -183,7 +186,9 @@ class CheckListsAssignmentSerializer(serializers.ModelSerializer):
             "id",
             "checklist",
             "assigned_to",
-            "assigned_at"
+            "group_assigned",
+            "assigned_at",
+            "is_active"
         ]
         read_only_fields = [
             "id",

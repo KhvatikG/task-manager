@@ -23,22 +23,17 @@ class Role(models.Model):
         User, on_delete=models.SET_NULL, related_name='updated_roles', null=True, blank=True
     )
 
-
-"""    
-class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')  # Связь один к одному с моделью User
-    can_ = models.BooleanField(default=False)  # Дополнительное поле для определения прав
-
     def __str__(self):
-        return f"Профиль для {self.user.username}"
-
-"""
+        return f"Роль: {self.role_name}"
 
 
 class Department(models.Model):
 
     name = models.CharField(max_length=30)
     description = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Отдел: {self.name}"
 
 
 class Task(models.Model):
@@ -90,19 +85,25 @@ class CheckList(models.Model):
 class CheckListAssignment(models.Model):
 
     checklist = models.ForeignKey(CheckList, on_delete=models.CASCADE, related_name='assignments')
-    assigned_to = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_checklists')
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='assigned_checklists',
+        null=True,
+        blank=True,
+    )
     group_assigned = models.ForeignKey(
         Role,
         on_delete=models.CASCADE,
+        related_name='assigned_checklists',
         null=True,
         blank=True,
-        related_name='assigned_checklists'
     )
     assigned_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"Назначение {self.checklist} для {self.assigned_to}"
+        return f"Назначение {self.checklist} для user: {self.assigned_to}, group: {self.group_assigned}"
 
 
 class CheckListExecution(models.Model):
