@@ -31,16 +31,20 @@ class UserViewSet(viewsets.ModelViewSet):
     Принимает данные в виде json с вложенной структурой
     В поле role должнен быть список объектов "role_name": "имя существующей роли"
     """
-    queryset = User.objects.all()
+    queryset = User.objects.prefetch_related('roles__users').all()
     serializer_class = UserSerializer
     # permission_classes = [IsAdminUser]  # Ограничиваем доступ только для администраторов
+
+    def get_queryset(self):
+        return User.objects.prefetch_related('roles__users').all()
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        headers = self.get_success_headers(serializer.data)
 
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class RoleViewSet(viewsets.ModelViewSet):
@@ -49,9 +53,12 @@ class RoleViewSet(viewsets.ModelViewSet):
     фронт получает список всех пользователей с активным чекбоксом у привязанных к роли.
     Переопределяются чекбоксы и методом PUT отправляется новый список привязанных пользователей.
     """
-    queryset = Role.objects.all()
+    queryset = Role.objects.prefetch_related('users').all()
     serializer_class = RoleSerializer
     # permission_classes = [IsAdminUser]  # Ограничиваем доступ только для администраторов
+
+    def get_queryset(self):
+        return Role.objects.prefetch_related('users').all()
 
 
 class TaskAPIView(viewsets.ModelViewSet):
@@ -161,9 +168,13 @@ class DepartmentAPIView(viewsets.ModelViewSet):
 
 
 class CheckListAPIView(viewsets.ModelViewSet):
-    queryset = CheckList.objects.all()
+    # Оптимизируем запрос к бд с помощью prefetch_related
+    queryset = CheckList.objects.prefetch_related('tasks__example_photos').all()
     serializer_class = CheckListSerializer
     # permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return CheckList.objects.prefetch_related('tasks__example_photos').all()
 
     def perform_create(self, serializer: ModelSerializer):
         serializer.save(created_by=self.request.user)
