@@ -179,6 +179,24 @@ class CheckListAPIView(viewsets.ModelViewSet):
     def perform_create(self, serializer: ModelSerializer):
         serializer.save(created_by=self.request.user)
 
+    @action(detail=True, methods=['get'])
+    def get_assignments(self, request, pk=None):
+        """
+        Возвращает список ролей отмечая те которые связанны с конкретным чек-листом
+        """
+        # Получаем текущий чек-лист
+        checklist = self.get_object()
+        # Получаем роли
+        roles = Role.objects.prefetch_related('assignment__checklist').all()
+        # Получаем поля is_assigned и assignment_id
+        serializer = RoleSerializer(roles, many=True, context={"checklist": checklist})
+
+        return Response(serializer.data)
+
+
+
+
+
     """
     Фильтрация
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]

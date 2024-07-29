@@ -5,6 +5,7 @@
 
 from django.db import models
 from django.contrib.auth.models import User
+from rest_framework.exceptions import ValidationError
 
 
 class Role(models.Model):
@@ -88,19 +89,33 @@ class CheckListAssignment(models.Model):
     assigned_to = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='assigned_checklists',
+        related_name='assignment',
         null=True,
         blank=True,
     )
     group_assigned = models.ForeignKey(
         Role,
         on_delete=models.CASCADE,
-        related_name='assigned_checklists',
+        related_name='assignment',
         null=True,
         blank=True,
     )
     assigned_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = (('checklist', 'group_assigned'),)
+
+    def clean(self):
+        if self.assigned_to and self.group_assigned:
+            raise ValidationError(
+                "Можно заполнить только одно поле: assigned_to или group_assigned."
+            )
+        if not self.assigned_to and not self.group_assigned:
+            raise ValidationError(
+                "Необходимо заполнить хотя бы одно поле: assigned_to или group_assigned."
+            )
+        return super().clean()
 
     def __str__(self):
         return f"Назначение {self.checklist} для user: {self.assigned_to}, group: {self.group_assigned}"

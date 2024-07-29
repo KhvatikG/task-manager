@@ -39,6 +39,9 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RoleSerializer(serializers.ModelSerializer):
+    is_assigned = serializers.SerializerMethodField()
+    assignment_id = serializers.SerializerMethodField()
+
     class Meta:
         model = Role
         fields = [
@@ -49,9 +52,31 @@ class RoleSerializer(serializers.ModelSerializer):
             "time_create",
             "time_update",
             "created_by",
-            "update_by"
+            "update_by",
+            "assignment",
+            "is_assigned",
+            "assignment_id",
         ]
         read_only_fields = ["id", "time_create", "time_update", "created_by", "updated_by"]
+
+    def get_is_assigned(self, obj):
+        """
+        Возвращает True если роль привязана к чек-листу в контексте которого вызвана.
+        """
+        if 'checklist' in self.context:  # Проверка наличия ключа
+            return CheckListAssignment.objects.filter(group_assigned=obj, checklist=self.context['checklist']).exists()
+
+    def get_assignment_id(self, obj):
+        """
+        Возвращает id модели assignment
+        """
+        if 'checklist' in self.context:  # Проверка наличия ключа
+            assignment = CheckListAssignment.objects.filter(
+                group_assigned=obj, checklist=self.context['checklist']
+            ).first()
+            return assignment.id if assignment else None
+        else:
+            return None
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -154,6 +179,7 @@ class CheckListSerializer(serializers.ModelSerializer):
     tasks = TaskSerializer(many=True, read_only=True)
     department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all())
     created_by = UserSerializer(read_only=True)
+    groups = serializers.SerializerMethodField()
 
     class Meta:
         model = CheckList
@@ -164,6 +190,7 @@ class CheckListSerializer(serializers.ModelSerializer):
             "time_create",
             "time_update",
             "is_published",
+            "groups",
             "tasks",
             "created_by",
         ]
@@ -172,7 +199,17 @@ class CheckListSerializer(serializers.ModelSerializer):
             "time_create",
             "time_update",
             "created_by",
+            "groups",
         ]
+
+    def get_groups(self, obj):
+        """
+        Возвращает список имён привязанных групп(ролей)
+        """
+        # Получаем объекты связей
+        assignments = obj.assignments.all()
+        # Получаем и возвращаем список имён ролей через объекты связей
+        return [assignment.group_assigned.role_name for assignment in assignments if assignment.group_assigned]
 
 
 class CheckListsAssignmentSerializer(serializers.ModelSerializer):
