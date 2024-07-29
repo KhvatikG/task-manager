@@ -1,3 +1,6 @@
+# TODO: Пересмотреть поля
+# TODO: Оптимизировать запросы к бд
+
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from rest_framework import serializers
 
@@ -97,6 +100,7 @@ class UserSerializer(serializers.ModelSerializer):
         Ожидает роли в виде списка словарей по ключу roles
         "role_name": "имя существующей роли"
         """
+        # TODO: Переработать создание пользователя (password to set_password и т.д.)
         # Создаём объект пользователя
         user = User.objects.create_user(
             username=validated_data.pop("username", ""),
