@@ -2,6 +2,8 @@
 # TODO: Оптимизировать запросы к бд
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
+from django.db.models import Q
+from django.utils import timezone
 from rest_framework import serializers
 
 from django.contrib.auth.models import User
@@ -206,6 +208,7 @@ class CheckListSerializer(serializers.ModelSerializer):
             "groups",
         ]
 
+    # TODO: Возможно стоит заменить на StringRelatedField
     def get_groups(self, obj):
         """
         Возвращает список имён привязанных групп(ролей)
@@ -282,6 +285,7 @@ class TaskExecutionSerializer(serializers.ModelSerializer):
 
 
 class CheckListExecutionSerializer(serializers.ModelSerializer):
+    checklist_id = serializers.IntegerField(required=False)
     checklist = CheckListSerializer(read_only=True)
     executed_by = UserSerializer(read_only=True)
     item_executions = TaskExecutionSerializer(many=True, read_only=True)
@@ -291,6 +295,7 @@ class CheckListExecutionSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "checklist",
+            "checklist_id",
             "executed_by",
             "start_at",
             "completed_at",
@@ -300,10 +305,23 @@ class CheckListExecutionSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "executed_by",
-            "start_at"
+            "checklist",
+            "start_at",
+            "completed_at",
+            "status",
         ]
 
     def create(self, validated_data):
+        checklist_id = validated_data.pop('checklist_id')
+        checklist = CheckList.objects.get(pk=checklist_id)  # Получаем объект CheckList по id
+
+        # Проверка, существует ли уже такой CheckListExecution
+        if CheckListExecution.objects.filter(
+                Q(checklist=checklist) & Q(start_date=timezone.now().date())
+        ).exists():
+            raise serializers.ValidationError("CheckListExecution с таким чеклистом и датой уже существует")
+
         user = self.context['request'].user
         validated_data['executed_by'] = user
+        validated_data['checklist'] = checklist
         return super().create(validated_data)

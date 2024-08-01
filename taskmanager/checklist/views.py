@@ -2,6 +2,7 @@ import ast
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -9,12 +10,14 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer
 
-from checklist.models import Task, Department, CheckList, TaskExamplePhoto, User, Role, CheckListAssignment
+from checklist.models import Task, Department, CheckList, TaskExamplePhoto, User, Role, CheckListAssignment, \
+    CheckListExecution
 from checklist.serializers import (
     TaskSerializer,
     DepartmentSerializer,
     CheckListSerializer,
     TaskExamplePhotoSerializer, UserSerializer, RoleSerializer, CheckListsAssignmentSerializer,
+    CheckListExecutionSerializer,
 )
 
 
@@ -94,14 +97,6 @@ class TaskAPIView(viewsets.ModelViewSet):
 
     @transaction.atomic
     def update(self, request, *args, **kwargs):
-        # ---------------------------------------------------------------
-        print(request.headers)
-        print(f"Во вьюхе: \n {request.data}")
-        print(f"Фото: \n {request.data.getlist('photo')}")
-        p: InMemoryUploadedFile = request.data.getlist('photo')[0]
-        print(p.name)
-
-        # ----------------------------------------------------------------
         partial = kwargs.pop('partial', False)
 
         # Создаём сериализатор для таски
@@ -114,7 +109,6 @@ class TaskAPIView(viewsets.ModelViewSet):
 
         # Извлекаем список фотографий из запроса и данные для FotoExample и объедением.
         photos = self.parse_photo_example_objects(request.data, task.id)
-        print(f"Photos: {photos}")
 
         for photo in photos:
             # Если есть поле id, то изменяем существующую модель фото примера
@@ -130,7 +124,6 @@ class TaskAPIView(viewsets.ModelViewSet):
                 photo_serializer.save()
 
         return Response(serializer.data)
-
 
     def parse_photo_example_objects(self, data, task_id):
 
@@ -195,6 +188,48 @@ class CheckListAPIView(viewsets.ModelViewSet):
         serializer = RoleSerializer(roles, many=True, context={"checklist": checklist})
 
         return Response(serializer.data)
+
+
+class AssignmentAPIView(viewsets.ModelViewSet):
+    queryset = CheckListAssignment.objects.all()
+    serializer_class = CheckListsAssignmentSerializer
+
+
+class CheckListExecutionAPIView(viewsets.ModelViewSet):
+    queryset = CheckListExecution.objects.all()
+    serializer_class = CheckListExecutionSerializer
+
+    def list(self, request, *args, **kwargs):
+        today = timezone.now().date()
+        user = request.user
+        checklists = CheckList.objects.filter(assignments__group_assigned__in=user.roles.all()).distinct()
+        response = []
+
+        # Проходим по всем привязанным к юзеру чек-листам
+        for checklist in checklists:
+            # Если чек лист был запущен сегодня, добавляем его экземпляр к ответу
+            if exec_checklist := checklist.executions.filter(start_at__date=today).first():
+                exec_serializer = CheckListExecutionSerializer(exec_checklist)
+                response.append(exec_serializer.data)
+            else:
+                # Если чек-лист сегодня еще не запускался, то отправляем данные необходимые для запуска
+                not_exec_checklist_data = {
+                    'checklist_id': checklist.id,  # id чек-листа для запуска
+                    'start_at': None,  # Показывает что это еще не запущенный чек-лист
+                }
+                exec_serializer = CheckListExecutionSerializer(data=not_exec_checklist_data)
+                exec_serializer.is_valid(raise_exception=True)
+                response.append(exec_serializer.data)
+
+        return Response(response)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data)
+
 
 
 

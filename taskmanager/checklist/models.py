@@ -6,6 +6,7 @@
 
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 
@@ -132,6 +133,12 @@ class CheckListExecution(models.Model):
         ('in_progress', 'В процессе'),
         ('completed', 'Завершено'),
     ], default='in_progress')
+
+    # Поле для даты без времени, для отслеживания уникальности(один уникальный чек-лист в один день)
+    start_date = models.DateField(default=timezone.now)
+
+    class Meta:
+        unique_together = (('checklist', 'start_date'),)
 
     def __str__(self):
         return f"Исполнение {self.checklist} пользователем {self.executed_by}"
