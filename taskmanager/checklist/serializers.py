@@ -1,5 +1,6 @@
 # TODO: Пересмотреть поля
 # TODO: Оптимизировать запросы к бд
+# TODO: "Спрятать" лишние поля от пользователей через SerializerMethodField
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.db.models import Q
@@ -135,10 +136,6 @@ class TaskExamplePhotoSerializer(serializers.ModelSerializer):
         fields = ["id", "task", "photo", "description", "uploaded_at", "order"]
         read_only_fields = ["id", "uploaded_at"]
 
-    def validate(self, data):
-        print(f"В фото сериализаторе {data}")
-        return data
-
     def validate_photo(self, value):
         if not value.name.lower().endswith(('.jpg', '.jpeg')):
             raise serializers.ValidationError("Неподдерживаемый формат фото.")
@@ -175,7 +172,6 @@ class TaskSerializer(serializers.ModelSerializer):
         return data
 
     def validate(self, data):
-        print(f"В сериализаторе: \n {data}")
         if self.instance is None and 'check_list' not in data:
             raise serializers.ValidationError("check_list is required when creating a new Task")
         return data
@@ -241,6 +237,7 @@ class CheckListsAssignmentSerializer(serializers.ModelSerializer):
 
 
 class TaskExecutionPhotoSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = TaskExecutionPhoto
         fields = [
@@ -253,12 +250,16 @@ class TaskExecutionPhotoSerializer(serializers.ModelSerializer):
             "id",
             "uploaded_at",
         ]
+    def validate_photo(self, value):
+        if not value.name.lower().endswith(('.jpg', '.jpeg')):
+            raise serializers.ValidationError("Неподдерживаемый формат фото.")
+        return value
 
 
 class TaskExecutionSerializer(serializers.ModelSerializer):
-    task = TaskSerializer(read_only=True)
+    task = serializers.PrimaryKeyRelatedField(queryset=Task.objects.all())
     completed_by = UserSerializer(read_only=True)
-    result_photos = TaskExecutionPhotoSerializer(many=True, read_only=True)
+    result_photos = TaskExecutionPhotoSerializer(many=True, required=False)
 
     class Meta:
         model = TaskExecutions
@@ -279,8 +280,16 @@ class TaskExecutionSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        user = self.context['request'].user
-        validated_data['completed_by'] = user
+        task = validated_data.get('task')
+
+        # Проверка, существует ли уже такая TaskExecution
+        if TaskExecutions.objects.filter(
+                Q(task=task) & Q(completed_date=timezone.now().date())
+        ).exists():
+            raise serializers.ValidationError("TaskExecution для такой Таски и с такой датой уже существует")
+
+        # user = self.context['request'].user
+        validated_data['completed_by'] = User.objects.get(pk=1)
         return super().create(validated_data)
 
 
