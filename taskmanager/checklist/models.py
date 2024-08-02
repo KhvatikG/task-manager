@@ -153,6 +153,12 @@ class TaskExecutions(models.Model):
     completed_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='completed_tasks')
     comments = models.TextField(blank=True)
 
+    # Поле для даты без времени, для отслеживания уникальности(одна уникальная таска в один день)
+    completed_date = models.DateField(default=timezone.now)
+
+    class Meta:
+        unique_together = (('task', 'completed_date'),)
+
     def __str__(self):
         return f"Выполнение задачи {self.task} в рамках {self.execution}"
 
