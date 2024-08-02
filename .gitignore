@@ -1,4 +1,6 @@
 .idea
 .venv
 taskmanager/db.sqlite3
-taskmanager/task_examples
+taskmanager/media/task_examples
+taskmanager/task_results
+taskmanager/media

@@ -1,7 +1,10 @@
 import ast
+import os
+from typing import List
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.db import transaction
+from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
@@ -9,15 +12,16 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer
+from rest_framework.views import APIView
 
 from checklist.models import Task, Department, CheckList, TaskExamplePhoto, User, Role, CheckListAssignment, \
-    CheckListExecution
+    CheckListExecution, TaskExecutions, TaskExecutionPhoto
 from checklist.serializers import (
     TaskSerializer,
     DepartmentSerializer,
     CheckListSerializer,
     TaskExamplePhotoSerializer, UserSerializer, RoleSerializer, CheckListsAssignmentSerializer,
-    CheckListExecutionSerializer,
+    CheckListExecutionSerializer, TaskExecutionSerializer, TaskExecutionPhotoSerializer,
 )
 
 
@@ -231,8 +235,45 @@ class CheckListExecutionAPIView(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+class TaskExecutionAPIView(viewsets.ModelViewSet):
+    queryset = TaskExecutions.objects.all()
+    serializer_class = TaskExecutionSerializer
 
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        # Создаём сериализатор для объекта TaskExecutions
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
+        # Сохраняем объект
+        task_exec = serializer.save()
+
+        # Извлекаем список фотографий из запроса и данные для TaskExecutionPhoto и объедением.
+        photos = self.parse_photo_result_objects(request.data, task_exec.id)
+
+        # Добавляем фото сериализатор, валидируем и сохраняем
+        photo_serializer = TaskExecutionPhotoSerializer(data=photos, many=True, context={'request': request})
+        photo_serializer.is_valid(raise_exception=True)
+        photo_serializer.save()
+
+        serializer = self.get_serializer(task_exec)
+
+        return Response(serializer.data)
+
+    def parse_photo_result_objects(self, data, task_exec_id) -> List[dict]:
+        """
+        Возвращает список объектов TaskExamplePhoto(в виде словарей) с прикрепленным фото.
+        """
+        result = []
+
+        if photos := data.getlist('photos', False):
+            for photo in photos:
+                result.append({
+                    "task_execution": task_exec_id,
+                    "photo": photo
+                })
+
+        return result
 
 
     """
